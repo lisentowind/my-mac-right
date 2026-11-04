@@ -1,0 +1,9 @@
+# Local planning and progress notes
+/PLAN.md
+/PROGRESS.md
+
+# Xcode local state and build products
+DerivedData/
+*.xcuserstate
+.DS_Store
+build
