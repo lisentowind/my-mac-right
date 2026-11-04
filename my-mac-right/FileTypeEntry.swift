@@ -186,6 +186,10 @@ enum SharedFileCreationStore {
     }
 }
 
+enum FinderLaunchArguments {
+    static let fileCreationRequest = "--finder-file-creation-request"
+}
+
 struct FinderPreferencesSnapshot: Codable {
     var fileTypes: [FileTypeEntry]
     var finderOpenWithBundleIdentifiers: Set<String>

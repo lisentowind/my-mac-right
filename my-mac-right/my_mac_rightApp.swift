@@ -17,8 +17,14 @@ struct my_mac_rightApp: App {
     var body: some Scene {
         Window("Mac Right", id: "main") {
             ContentView(store: preferences)
-                .onAppear { NSApp.activate() }
+                .onAppear {
+                    if !isFinderFileCreationLaunch {
+                        NSApp.activate()
+                    }
+                }
         }
+        .defaultLaunchBehavior(isFinderFileCreationLaunch ? .suppressed : .automatic)
+        .restorationBehavior(isFinderFileCreationLaunch ? .disabled : .automatic)
 
         MenuBarExtra("Mac Right", systemImage: "arrowshape.turn.up.right") {
             if let bookmark = preferences.creationDirectoryBookmark {
@@ -58,6 +64,10 @@ struct my_mac_rightApp: App {
                 NSApp.terminate(nil)
             }
         }
+    }
+
+    private var isFinderFileCreationLaunch: Bool {
+        CommandLine.arguments.contains(FinderLaunchArguments.fileCreationRequest)
     }
 
     private func showMainWindow() {

@@ -218,20 +218,24 @@ final class FinderSyncExtension: FIFinderSync {
     }
 
     private func openContainingApplication() {
+        let bundleIdentifier = "tingfeng.my-mac-right"
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty else {
+            return
+        }
+
         let extensionBundleURL = Bundle(for: FinderSyncExtension.self).bundleURL
         guard let applicationURL = containingApplicationURL(for: extensionBundleURL)
-                ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "tingfeng.my-mac-right") else {
+                ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
             NSLog("Mac Right could not locate its host application.")
             return
         }
         let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        NSWorkspace.shared.openApplication(at: applicationURL, configuration: configuration) { application, error in
+        configuration.activates = false
+        configuration.arguments = [FinderLaunchArguments.fileCreationRequest]
+        NSWorkspace.shared.openApplication(at: applicationURL, configuration: configuration) { _, error in
             if let error {
                 NSLog("Mac Right could not open the host application: %@", error.localizedDescription)
-                return
             }
-            application?.activate(options: [.activateAllWindows])
         }
     }
 

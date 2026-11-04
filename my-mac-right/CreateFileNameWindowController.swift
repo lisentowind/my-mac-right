@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate {
+final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     private let request: FinderFileCreationRequest
     private let completion: (FinderFileCreationResponse) -> Void
     private let nameField: NSTextField
@@ -16,14 +16,18 @@ final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate
         self.completion = completion
         nameField = NSTextField(string: request.type.displayName)
 
-        let window = NSWindow(
+        let window = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 220),
-            styleMask: [.titled, .closable],
+            styleMask: [.titled, .closable, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         window.title = "新建 \(request.type.displayName) 文件"
         window.level = .floating
+        window.isFloatingPanel = true
+        window.becomesKeyOnlyIfNeeded = true
+        window.hidesOnDeactivate = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -38,7 +42,7 @@ final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate
 
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
-        activateAndFocusNameField()
+        presentAndFocusNameField()
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -56,8 +60,7 @@ final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate
         nameField.isEditable = true
         nameField.isSelectable = true
         nameField.isEnabled = true
-        nameField.target = self
-        nameField.action = #selector(createFile)
+        nameField.delegate = self
         nameField.focusRingType = .default
 
         let extensionLabel = NSTextField(labelWithString: "扩展名：.\(request.type.fileExtension)")
@@ -116,36 +119,48 @@ final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate
         window?.initialFirstResponder = nameField
     }
 
-    private func activateAndFocusNameField() {
+    private func presentAndFocusNameField() {
         guard let window else { return }
-        NSApp.activate()
-        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        window.makeFirstResponder(nameField)
+        nameField.currentEditor()?.selectAll(nil)
+
         DispatchQueue.main.async { [weak self, weak window] in
             guard let self, let window else { return }
-            NSApp.activate()
-            window.makeKey()
-            window.makeFirstResponder(self.nameField)
-            self.nameField.selectText(nil)
+            window.orderFrontRegardless()
+            if self.nameField.currentEditor() == nil {
+                window.makeFirstResponder(self.nameField)
+            }
+            self.nameField.currentEditor()?.selectAll(nil)
         }
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard control === nameField,
+              commandSelector == #selector(NSResponder.insertNewline(_:)) else {
+            return false
+        }
+        createFile()
+        return true
     }
 
     @objc private func createFile() {
         let fileName = nameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !fileName.isEmpty else {
             NSSound.beep()
-            activateAndFocusNameField()
+            presentAndFocusNameField()
             return
         }
         guard fileName.rangeOfCharacter(from: CharacterSet(charactersIn: "/:")) == nil else {
             NSSound.beep()
-            activateAndFocusNameField()
+            presentAndFocusNameField()
             return
         }
 
         var directoryPath = request.directoryPath
         if directoryPath == nil {
             guard let directory = PanelUtilities.chooseDirectory(message: "选择新文件保存位置") else {
-                activateAndFocusNameField()
+                presentAndFocusNameField()
                 return
             }
             directoryPath = directory.standardizedFileURL.path
@@ -164,7 +179,7 @@ final class CreateFileNameWindowController: NSWindowController, NSWindowDelegate
                 ))
             } catch {
                 errorLabel.stringValue = "创建失败：\(error.localizedDescription)"
-                activateAndFocusNameField()
+                presentAndFocusNameField()
             }
             return
         }
